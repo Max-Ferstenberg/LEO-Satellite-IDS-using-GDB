@@ -48,9 +48,8 @@ class RequestSequenceLoader:
         self.main_df[' attack_cat'] = self.main_df[' attack_cat'].fillna("Missing")
         self.main_df[' attack_cat'] = self.main_df[' attack_cat'].replace('', "Missing")
         self.main_df[' attack_cat'] = self.main_df[' attack_cat'].astype(str)
-        print(f"Unique ' attack_cat' AFTER handling missing: {self.main_df[' attack_cat'].unique()}")
-
-        #TEMPORARILY remove requests labeled as 'worms' (for testing) - This is an extremely underrepresented class, so we can use it for evaluating novel attack detection later
+                     
+        #TEMPORARILY remove worms - This is an extremely underrepresented class, so we can use it for evaluating novel attack detection later
         self.main_df = self.main_df[self.main_df[' attack_cat'] != 'worms']
         print(f"main_df shape after removing 'worms': {self.main_df.shape}")
 
@@ -177,7 +176,6 @@ class RequestSequenceLoader:
         batch_static = []
         batch_sequences = []
         batch_labels = []
-        self.skipped_requests = 0  #Artefact from debugging - to be removed
 
         sample_ids = [] if sample_ids is None else (sample_ids.tolist() if not isinstance(sample_ids, list) else sample_ids)
 
@@ -187,8 +185,6 @@ class RequestSequenceLoader:
             try:
                 mask = self.main_df["request_id"] == req_id
                 static_features = self.static_features[mask]
-                if np.isnan(static_features).any():
-                    static_features = np.nan_to_num(static_features)  #Replace NaNs with zeros
                 packet_df = self.packet_groups.get(str(req_id), pd.DataFrame())
                 if req_id in sample_ids:
                     print(f"Request ID: {req_id}, Number of packets loaded: {len(packet_df)}")
@@ -221,9 +217,7 @@ class RequestSequenceLoader:
                 label_one_hot[label_index] = 1.0
                 batch_labels.append(label_one_hot)
             except Exception as e:
-                print(f"Skipping request {req_id} due to error: {str(e)}")
-                self.skipped_requests += 1
-                continue
+                print(f"Request {req_id} invalid due to error: {str(e)}") #Halt all execution if any data is invalid      
 
         if not batch_static:
             return ((np.empty((0, self.static_features.shape[1]), dtype=np.float32),
@@ -261,8 +255,8 @@ class RequestSequenceLoader:
 
 # --- Hybrid Model Architecture ---
 def build_model(static_feature_dim, sequence_feature_dim, n_classes):
-    #Constructs the RNN with our two branches:
-    #The branches are merged and followed by dense layers to produce a final softmax output.
+    #Constructs the RNN with our two branches
+    #The branches are merged and followed by dense layers to produce a final softmax output
 
     #Static branch
     static_input = Input(shape=(static_feature_dim,))
