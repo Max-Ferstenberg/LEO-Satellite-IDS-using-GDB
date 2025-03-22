@@ -9,6 +9,9 @@ gdb ./tmp/server
 set logging file [FILENAME].txt
 set logging enabled on
 break process_packet_sat2
+stepi
+stepi
+stepi
 commands
     silent  #Silences GDB output other than our direct commands to it
     finish  #Steps to the end of process execution so we can examine the state of SAT2 post-packet processing
